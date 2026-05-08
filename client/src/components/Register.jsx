@@ -7,7 +7,6 @@ export default function Register() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -15,59 +14,49 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
-    if (password !== confirmPassword) {
-      return setError('Passwords do not match');
-    }
-
     setLoading(true);
-
+    setError('');
     try {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),
       });
-
       const data = await res.json();
-
-      if (res.ok) {
-        login(data.user, data.token);
-        navigate('/');
-      } else {
-        setError(data.message || 'Registration failed');
-      }
+      if (!res.ok) throw new Error(data.message);
+      login(data.user, data.token);
+      navigate('/');
     } catch (err) {
-      setError('Connection error. Please try again.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
+    <div className="auth-page stylish-auth">
+      <div className="auth-mesh-bg"></div>
+      <div className="auth-card glass">
         <div className="auth-header">
-          <div className="logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          <div className="logo-glow">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0014 3.118a10.003 10.003 0 00-6.139 15.363z" />
             </svg>
           </div>
-          <h1>Join Pulse Chat</h1>
-          <p>The most beautiful way to stay connected.</p>
+          <h1>Create Account</h1>
+          <p>Join the Pulse community today</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="auth-error">{error}</div>}
           
           <div className="input-group">
             <label>Username</label>
             <input
               type="text"
-              placeholder="CoolUser123"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              placeholder="johndoe"
               required
             />
           </div>
@@ -76,9 +65,9 @@ export default function Register() {
             <label>Email Address</label>
             <input
               type="email"
-              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
               required
             />
           </div>
@@ -87,31 +76,20 @@ export default function Register() {
             <label>Password</label>
             <input
               type="password"
-              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="input-group">
-            <label>Confirm Password</label>
-            <input
-              type="password"
               placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
               required
             />
           </div>
 
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? 'Creating Account...' : 'Create Account'}
+          <button type="submit" className="auth-submit-btn" disabled={loading}>
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
 
         <div className="auth-footer">
-          Already have an account? <Link to="/login">Sign in</Link>
+          Already have an account? <Link to="/login">Sign In</Link>
         </div>
       </div>
     </div>

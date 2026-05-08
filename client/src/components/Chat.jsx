@@ -28,7 +28,6 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
-  // Theme Handling
   useEffect(() => {
     if (isDarkMode) {
       document.body.classList.add('dark-mode');
@@ -65,7 +64,7 @@ export default function Chat() {
     const loadMessages = async () => {
       try {
         const url = selectedUser 
-          ? `${API_URL}/api/messages?recipientId=${selectedUser._id}`
+          ? `${API_URL}/api/messages?recipientId=${selectedUser.id}`
           : `${API_URL}/api/messages`;
         
         const res = await fetch(url, {
@@ -90,8 +89,8 @@ export default function Chat() {
     s.on('newMessage', (msg) => {
       const isGlobalMsg = !msg.recipient && !selectedUser;
       const isPrivateMsg = selectedUser && (
-        (msg.sender === selectedUser._id && msg.recipient === user.id) ||
-        (msg.sender === user.id && msg.recipient === selectedUser._id)
+        (msg.sender === selectedUser.id && msg.recipient === user.id) ||
+        (msg.sender === user.id && msg.recipient === selectedUser.id)
       );
 
       if (isGlobalMsg || isPrivateMsg) {
@@ -126,7 +125,7 @@ export default function Chat() {
 
     socket.emit('sendMessage', {
       content: newMessage,
-      recipientId: selectedUser?._id || null,
+      recipientId: selectedUser?.id || null,
     });
     setNewMessage('');
     socket.emit('stopTyping');
@@ -198,7 +197,7 @@ export default function Chat() {
           {filteredUsers.map((u) => {
             const isOnline = onlineUsers.includes(u.id);
             return (
-              <div key={u.id} className={`user-item ${selectedUser?._id === u.id ? 'active' : ''}`} onClick={() => selectUser({ _id: u.id, username: u.username })}>
+              <div key={u.id} className={`user-item ${selectedUser?.id === u.id ? 'active' : ''}`} onClick={() => selectUser({ id: u.id, username: u.username })}>
                 <div className="avatar" style={{ background: `hsl(${u.username.length * 40}, 60%, 50%)` }}>
                   {u.username[0].toUpperCase()}
                   {isOnline && <div className="online-indicator" />}
@@ -226,7 +225,7 @@ export default function Chat() {
           <div className="header-info" style={{ marginLeft: '12px' }}>
             <h2>{selectedUser ? selectedUser.username : 'Global Chat'}</h2>
             <p style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>
-              {typingUsers.size > 0 ? 'Typing...' : (selectedUser ? (onlineUsers.includes(selectedUser._id) ? 'Online' : 'Offline') : 'Public Group')}
+              {typingUsers.size > 0 ? 'Typing...' : (selectedUser ? (onlineUsers.includes(selectedUser.id) ? 'Online' : 'Offline') : 'Public Group')}
             </p>
           </div>
         </header>
@@ -240,7 +239,7 @@ export default function Chat() {
 
         <form className="message-form" onSubmit={handleSendMessage}>
           <ImageUpload onImageReady={(imageUrl) => {
-            socket.emit('sendMessage', { image: imageUrl, recipientId: selectedUser?._id || null });
+            socket.emit('sendMessage', { image: imageUrl, recipientId: selectedUser?.id || null });
           }} />
           <input
             type="text"
@@ -261,7 +260,7 @@ export default function Chat() {
       </div>
 
       {notification && (
-        <div className="notification-toast" onClick={() => selectUser({ _id: notification.sender, username: notification.senderName })}>
+        <div className="notification-toast" onClick={() => selectUser({ id: notification.sender, username: notification.senderName })}>
           <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{notification.senderName}</div>
           <div style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>{notification.content || '📷 Photo'}</div>
         </div>

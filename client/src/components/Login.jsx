@@ -13,54 +13,49 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
-
+    setError('');
     try {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-
       const data = await res.json();
-
-      if (res.ok) {
-        login(data.user, data.token);
-        navigate('/');
-      } else {
-        setError(data.message || 'Login failed');
-      }
+      if (!res.ok) throw new Error(data.message);
+      login(data.user, data.token);
+      navigate('/');
     } catch (err) {
-      setError('Connection error. Please try again.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
+    <div className="auth-page stylish-auth">
+      <div className="auth-mesh-bg"></div>
+      <div className="auth-card glass">
         <div className="auth-header">
-          <div className="logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <div className="logo-glow">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           </div>
           <h1>Welcome Back</h1>
-          <p>Connect instantly. Chat beautifully.</p>
+          <p>Login to your Pulse account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="auth-error">{error}</div>}
           
           <div className="input-group">
             <label>Email Address</label>
             <input
               type="email"
-              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
               required
             />
           </div>
@@ -69,15 +64,15 @@ export default function Login() {
             <label>Password</label>
             <input
               type="password"
-              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
               required
             />
           </div>
 
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
+          <button type="submit" className="auth-submit-btn" disabled={loading}>
+            {loading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
 
