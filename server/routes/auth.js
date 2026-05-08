@@ -86,4 +86,14 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// GET /api/auth/users - Fetch all users except current
+router.get('/users', async (req, res) => {
+  try {
+    const users = await User.find({}, 'username email avatar').lean();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

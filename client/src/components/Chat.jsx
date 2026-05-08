@@ -9,15 +9,16 @@ export default function Chat() {
   const { user, token, logout } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [allUsers, setAllUsers] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [socket, setSocket] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [notification, setNotification] = useState(null);
-  const messagesEndRef = useRef(null);
-
-  // Mobile state: if true, we show the chat window; if false, we show the user list.
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+  const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -27,13 +28,39 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
-  // Handle Notifications
+  // Theme Handling
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   const showToast = (msg) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Load messages
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/auth/users`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAllUsers(data.filter(u => u.id !== user.id));
+        }
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+      }
+    };
+    if (token) fetchUsers();
+  }, [token, user.id]);
+
   useEffect(() => {
     const loadMessages = async () => {
       try {
@@ -56,13 +83,11 @@ export default function Chat() {
     if (token) loadMessages();
   }, [token, selectedUser]);
 
-  // Socket setup
   useEffect(() => {
     const s = io(SOCKET_URL, { auth: { token } });
     setSocket(s);
 
     s.on('newMessage', (msg) => {
-      // Check if message belongs to current chat
       const isGlobalMsg = !msg.recipient && !selectedUser;
       const isPrivateMsg = selectedUser && (
         (msg.sender === selectedUser._id && msg.recipient === user.id) ||
@@ -72,14 +97,12 @@ export default function Chat() {
       if (isGlobalMsg || isPrivateMsg) {
         setMessages((prev) => [...prev, msg]);
       } else if (msg.sender !== user.id) {
-        // Show notification for messages in other rooms
         showToast(msg);
       }
     });
 
     s.on('onlineUsers', (users) => {
-      // FIX: use 'u.id' instead of 'u.userId' to correctly filter yourself out
-      setOnlineUsers(users.filter(u => u.id !== user.id));
+      setOnlineUsers(users.map(u => u.id));
     });
 
     s.on('userTyping', ({ username }) => {
@@ -112,53 +135,84 @@ export default function Chat() {
   const selectUser = (u) => {
     setSelectedUser(u);
     setIsChatOpen(true);
+    setSearchTerm('');
   };
+
+  const filteredUsers = allUsers.filter(u => 
+    u.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="chat-container">
-      {/* Sidebar: hidden on mobile when chat is open */}
       <div className={`sidebar ${isChatOpen ? 'hidden' : ''}`}>
         <div className="user-profile">
-          <div className="avatar">{user.username[0].toUpperCase()}</div>
-          <div style={{ marginLeft: '12px', flex: 1 }}>
-            <h3>{user.username}</h3>
+          <div className="avatar" style={{ background: '#54656f' }}>
+            {user.username[0].toUpperCase()}
           </div>
-          <button onClick={logout} className="logout-btn" title="Logout">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+          <div style={{ marginLeft: '12px', flex: 1 }}>
+            <h3 style={{ fontSize: '15px' }}>{user.username}</h3>
+          </div>
+          <div className="header-actions" style={{ display: 'flex', gap: '8px' }}>
+            <button className="theme-toggle" onClick={() => setIsDarkMode(!isDarkMode)} title="Toggle Theme">
+              {isDarkMode ? (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              )}
+            </button>
+            <button onClick={logout} className="logout-btn" title="Logout">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="sidebar-search">
+          <div className="search-inner">
+            <svg viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-          </button>
+            <input 
+              type="text" 
+              placeholder="Search contacts..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="users-list">
-          <div className={`user-item ${!selectedUser ? 'active' : ''}`} onClick={() => selectUser(null)}>
-            <div className="avatar" style={{ background: '#334155' }}>#</div>
-            <div className="user-details">
-              <h4>Global Chat</h4>
-              <p>Public Room</p>
-            </div>
-          </div>
-
-          <div className="section-title">PRIVATE MESSAGES</div>
-          {filteredUsers.map((u) => (
-            <div 
-              key={u.id} 
-              className={`user-item ${selectedUser?._id === u.id ? 'active' : ''}`}
-              onClick={() => selectUser({ _id: u.id, username: u.username })}
-            >
-              <div className="avatar" style={{ background: `hsl(${u.username.length * 40}, 60%, 50%)` }}>
-                {u.username[0].toUpperCase()}
-              </div>
+          {!searchTerm && (
+            <div className={`user-item ${!selectedUser ? 'active' : ''}`} onClick={() => selectUser(null)}>
+              <div className="avatar" style={{ background: '#334155' }}>#</div>
               <div className="user-details">
-                <h4>{u.username}</h4>
-                <p>Click to chat privately</p>
+                <h4>Global Group Chat</h4>
+                <p>Public Messages</p>
               </div>
             </div>
-          ))}
+          )}
+
+          <div className="section-title">{searchTerm ? 'Search Results' : 'Contacts'}</div>
+          
+          {filteredUsers.map((u) => {
+            const isOnline = onlineUsers.includes(u.id);
+            return (
+              <div key={u.id} className={`user-item ${selectedUser?._id === u.id ? 'active' : ''}`} onClick={() => selectUser({ _id: u.id, username: u.username })}>
+                <div className="avatar" style={{ background: `hsl(${u.username.length * 40}, 60%, 50%)` }}>
+                  {u.username[0].toUpperCase()}
+                  {isOnline && <div className="online-indicator" />}
+                </div>
+                <div className="user-details">
+                  <h4>{u.username}</h4>
+                  <p>{isOnline ? 'Online' : 'Offline'}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Main Chat Area */}
       <div className="main-chat">
         <header className="chat-header">
           <button className="back-btn" onClick={() => setIsChatOpen(false)}>
@@ -166,13 +220,13 @@ export default function Chat() {
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="avatar">
+          <div className="avatar" style={{ background: selectedUser ? `hsl(${selectedUser.username.length * 40}, 60%, 50%)` : '#334155' }}>
             {selectedUser ? selectedUser.username[0].toUpperCase() : '#'}
           </div>
           <div className="header-info" style={{ marginLeft: '12px' }}>
             <h2>{selectedUser ? selectedUser.username : 'Global Chat'}</h2>
             <p style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>
-              {typingUsers.size > 0 ? 'Typing...' : (selectedUser ? 'Online' : 'Public Group')}
+              {typingUsers.size > 0 ? 'Typing...' : (selectedUser ? (onlineUsers.includes(selectedUser._id) ? 'Online' : 'Offline') : 'Public Group')}
             </p>
           </div>
         </header>
@@ -206,13 +260,10 @@ export default function Chat() {
         </form>
       </div>
 
-      {/* Notification Toast */}
       {notification && (
         <div className="notification-toast" onClick={() => selectUser({ _id: notification.sender, username: notification.senderName })}>
-          <strong>New message from {notification.senderName}</strong>
-          <p style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>
-            {notification.content || 'Sent an image'}
-          </p>
+          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{notification.senderName}</div>
+          <div style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>{notification.content || '📷 Photo'}</div>
         </div>
       )}
     </div>
