@@ -2,41 +2,22 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext.jsx';
 import MessageBubble from './MessageBubble.jsx';
-import Notification from './Notification.jsx';
 import ImageUpload from './ImageUpload.jsx';
 import { API_URL, SOCKET_URL } from '../utils/api.js';
 
 export default function Chat() {
   const { user, token, logout } = useAuth();
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const [newMessage, setNewMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const [typingUsers, setTypingUsers] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [connected, setConnected] = useState(false);
-
-  const socketRef = useRef(null);
+  const [typingUsers, setTypingUsers] = useState(new Set());
+  const [socket, setSocket] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null); // null means Global Chat
   const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
-  const notifIdRef = useRef(0);
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  const addNotification = useCallback((msg) => {
-    const id = ++notifIdRef.current;
-    setNotifications((prev) => [...prev.slice(-4), { ...msg, id }]);
-
-    // Browser notification
-    if (document.hidden && Notification.permission === 'granted') {
-      new window.Notification(`${msg.senderName}`, {
-        body: msg.content || '📷 Sent an image',
-        icon: '/favicon.ico',
-      });
-    }
-  }, []);
+  };
 
   useEffect(() => {
     scrollToBottom();
@@ -74,25 +55,29 @@ export default function Chat() {
     setSocket(s);
 
     s.on('newMessage', (msg) => {
-      // Only add message if it's relevant to the current conversation
-      const isGlobal = !msg.recipient && !selectedUser;
-      const isPrivate = selectedUser && (
+      // Logic for adding message to UI
+      const isGlobalMsg = !msg.recipient && !selectedUser;
+      const isPrivateMsg = selectedUser && (
         (msg.sender === selectedUser._id && msg.recipient === user.id) ||
         (msg.sender === user.id && msg.recipient === selectedUser._id)
       );
 
-      if (isGlobal || isPrivate) {
+      if (isGlobalMsg || isPrivateMsg) {
         setMessages((prev) => [...prev, msg]);
       }
       
+      // Notification logic
       if (msg.sender !== user.id) {
-        new Notification(`New message from ${msg.senderName}`, {
-          body: msg.content,
-        });
+        if ('Notification' in window && window.Notification.permission === 'granted') {
+          new window.Notification(`New from ${msg.senderName}`, {
+            body: msg.content || 'Sent an image',
+          });
+        }
       }
     });
 
     s.on('onlineUsers', (users) => {
+      // Filter out self
       setOnlineUsers(users.filter(u => u.userId !== user.id));
     });
 
@@ -108,208 +93,128 @@ export default function Chat() {
       });
     });
 
-    socket.on('userStopTyping', ({ username }) => {
-      setTypingUsers((prev) => prev.filter((u) => u !== username));
-    });
+    return () => s.disconnect();
+  }, [token, selectedUser, user.id]);
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [token, user.id, addNotification]);
-
-  // Auto-scroll on new messages
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  const handleSend = (e) => {
+  const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!input.trim() || !socketRef.current) return;
+    if (!newMessage.trim() || !socket) return;
 
-    socketRef.current.emit('sendMessage', { content: input.trim() });
-    socketRef.current.emit('stopTyping');
-    setInput('');
+    socket.emit('sendMessage', {
+      content: newMessage,
+      recipientId: selectedUser?._id || null,
+    });
+    setNewMessage('');
+    socket.emit('stopTyping');
   };
 
-  const handleInputChange = (e) => {
-    setInput(e.target.value);
-
-    // Typing indicator
-    if (socketRef.current) {
-      socketRef.current.emit('typing');
-      clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => {
-        socketRef.current?.emit('stopTyping');
-      }, 1500);
+  const handleTyping = (e) => {
+    setNewMessage(e.target.value);
+    if (socket) {
+      if (e.target.value.length > 0) {
+        socket.emit('typing');
+      } else {
+        socket.emit('stopTyping');
+      }
     }
   };
-
-  const handleImageReady = (imageUrl) => {
-    if (socketRef.current) {
-      socketRef.current.emit('sendMessage', { image: imageUrl });
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      handleSend(e);
-    }
-  };
-
-  const typingText =
-    typingUsers.length === 1
-      ? `${typingUsers[0]} is typing...`
-      : typingUsers.length > 1
-      ? `${typingUsers.length} people are typing...`
-      : '';
 
   return (
-    <div className="chat-layout">
-      {/* Notification toasts */}
-      <Notification notifications={notifications} removeNotification={removeNotification} />
-
-      {/* Sidebar */}
-      <aside className={`chat-sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <div className="logo-small">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            <span>Pulse Chat</span>
+    <div className="chat-container">
+      <div className="sidebar">
+        <div className="user-profile">
+          <div className="avatar">{user.username[0]}</div>
+          <div className="user-info">
+            <h3>{user.username}</h3>
+            <span className="status">Online</span>
           </div>
-          <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
+          <button onClick={logout} className="logout-btn" title="Logout">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
             </svg>
           </button>
         </div>
 
-        <div className="sidebar-section">
-          <h3>
-            <span className={`status-dot ${connected ? 'online' : 'offline'}`}></span>
-            Online — {onlineUsers.length}
-          </h3>
-          <ul className="user-list" id="online-users-list">
-            {onlineUsers.map((u) => (
-              <li key={u.id} className="user-item">
-                <div
-                  className="user-avatar"
-                  style={{
-                    background: `hsl(${u.username.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360}, 60%, 45%)`,
-                  }}
-                >
-                  {u.username.slice(0, 2).toUpperCase()}
-                </div>
-                <span className="user-name">
-                  {u.username}
-                  {u.id === user.id && <span className="you-badge">you</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <div className="users-list">
+          <div 
+            className={`user-item ${!selectedUser ? 'active' : ''}`}
+            onClick={() => setSelectedUser(null)}
+          >
+            <div className="avatar global">#</div>
+            <div className="user-info">
+              <h4>Global Chat</h4>
+              <p>Public Room</p>
+            </div>
+          </div>
 
-        <div className="sidebar-footer">
-          <div className="current-user">
-            <div
-              className="user-avatar"
-              style={{
-                background: `hsl(${user.username.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360}, 60%, 45%)`,
-              }}
+          <div className="section-title">Private Messages</div>
+          {onlineUsers.length === 0 && <p className="no-users">No other users online</p>}
+          {onlineUsers.map((u) => (
+            <div 
+              key={u.userId} 
+              className={`user-item ${selectedUser?._id === u.userId ? 'active' : ''}`}
+              onClick={() => setSelectedUser({ _id: u.userId, username: u.username })}
             >
-              {user.username.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="current-user-info">
-              <span className="current-user-name">{user.username}</span>
-              <span className="current-user-email">{user.email}</span>
-            </div>
-          </div>
-          <button className="logout-btn" onClick={logout} id="logout-btn" title="Sign Out">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-          </button>
-        </div>
-      </aside>
-
-      {/* Overlay for mobile sidebar */}
-      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
-
-      {/* Main chat area */}
-      <main className="chat-main">
-        <header className="chat-header">
-          <button className="menu-btn" onClick={() => setSidebarOpen(true)} id="sidebar-toggle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
-          <div className="header-info">
-            <h2>General Chat</h2>
-            <span className="header-meta">
-              {connected ? `${onlineUsers.length} online` : 'Connecting...'}
-            </span>
-          </div>
-          <div className="header-actions">
-            <span className={`connection-indicator ${connected ? 'connected' : ''}`}></span>
-          </div>
-        </header>
-
-        <div className="chat-messages" id="chat-messages">
-          {messages.length === 0 && (
-            <div className="empty-chat">
-              <div className="empty-chat-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
+              <div className="avatar">{u.username[0]}</div>
+              <div className="user-info">
+                <h4>{u.username}</h4>
+                <p>Online</p>
               </div>
-              <h3>No messages yet</h3>
-              <p>Be the first to say something!</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="main-chat">
+        <div className="chat-header">
+          <div className="header-text">
+            <h2>{selectedUser ? `Chat with ${selectedUser.username}` : 'Global Chat'}</h2>
+            <p className="status-text">
+              {selectedUser ? 'Private Conversation' : 'Public Room'}
+            </p>
+          </div>
+          <div className="typing-indicator-text">
+            {typingUsers.size > 0 && `${Array.from(typingUsers).join(', ')} is typing...`}
+          </div>
+        </div>
+
+        <div className="messages-area">
+          {messages.length === 0 && (
+            <div className="empty-state">
+              <p>No messages here yet. Start the conversation!</p>
             </div>
           )}
           {messages.map((msg) => (
-            <MessageBubble
-              key={msg._id}
-              message={msg}
-              isOwn={msg.sender === user.id}
+            <MessageBubble 
+              key={msg._id} 
+              message={msg} 
+              isOwn={msg.sender === user.id} 
             />
           ))}
           <div ref={messagesEndRef} />
         </div>
 
-        {typingText && (
-          <div className="typing-indicator">
-            <div className="typing-dots">
-              <span></span><span></span><span></span>
-            </div>
-            {typingText}
-          </div>
-        )}
-
-        <form className="chat-input-bar" onSubmit={handleSend} id="message-form">
-          <ImageUpload onImageReady={handleImageReady} />
+        <form className="message-form" onSubmit={handleSendMessage}>
+          <ImageUpload onImageReady={(imageUrl) => {
+            socket.emit('sendMessage', { 
+              image: imageUrl,
+              recipientId: selectedUser?._id || null 
+            });
+          }} />
           <input
             type="text"
-            className="chat-input"
-            placeholder="Type a message..."
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            id="message-input"
+            placeholder={selectedUser ? `Message ${selectedUser.username}...` : "Type a message..."}
+            value={newMessage}
+            onChange={handleTyping}
             autoComplete="off"
           />
-          <button type="submit" className="send-btn" disabled={!input.trim()} id="send-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          <button type="submit" className="send-btn" disabled={!newMessage.trim()}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
             </svg>
           </button>
         </form>
-      </main>
+      </div>
     </div>
   );
 }
