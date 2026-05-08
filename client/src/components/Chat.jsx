@@ -62,6 +62,7 @@ export default function Chat() {
 
   useEffect(() => {
     const loadMessages = async () => {
+      if (!selectedUser && messages.length > 0) return; // Don't clear if staying on global
       try {
         const url = selectedUser 
           ? `${API_URL}/api/messages?recipientId=${selectedUser.id}`
@@ -143,21 +144,18 @@ export default function Chat() {
 
   return (
     <div className="chat-container">
+      {/* Sidebar */}
       <div className={`sidebar ${isChatOpen ? 'hidden' : ''}`}>
         <div className="user-profile">
           <div className="avatar" style={{ background: '#54656f' }}>
             {user.username[0].toUpperCase()}
           </div>
           <div style={{ marginLeft: '12px', flex: 1 }}>
-            <h3 style={{ fontSize: '15px' }}>{user.username}</h3>
+            <h3 style={{ fontSize: '15px', fontWeight: '600' }}>{user.username}</h3>
           </div>
-          <div className="header-actions" style={{ display: 'flex', gap: '8px' }}>
+          <div className="header-actions" style={{ display: 'flex', gap: '4px' }}>
             <button className="theme-toggle" onClick={() => setIsDarkMode(!isDarkMode)} title="Toggle Theme">
-              {isDarkMode ? (
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              ) : (
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              )}
+              {isDarkMode ? '☀️' : '🌙'}
             </button>
             <button onClick={logout} className="logout-btn" title="Logout">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -174,7 +172,7 @@ export default function Chat() {
             </svg>
             <input 
               type="text" 
-              placeholder="Search contacts..." 
+              placeholder="Search or start new chat" 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -182,15 +180,13 @@ export default function Chat() {
         </div>
 
         <div className="users-list">
-          {!searchTerm && (
-            <div className={`user-item ${!selectedUser ? 'active' : ''}`} onClick={() => selectUser(null)}>
-              <div className="avatar" style={{ background: '#334155' }}>#</div>
-              <div className="user-details">
-                <h4>Global Group Chat</h4>
-                <p>Public Messages</p>
-              </div>
+          <div className={`user-item ${!selectedUser ? 'active' : ''}`} onClick={() => selectUser(null)}>
+            <div className="avatar" style={{ background: '#00a884' }}>#</div>
+            <div className="user-details">
+              <h4>Global Community</h4>
+              <p>Public Group Chat</p>
             </div>
-          )}
+          </div>
 
           <div className="section-title">{searchTerm ? 'Search Results' : 'Contacts'}</div>
           
@@ -204,7 +200,7 @@ export default function Chat() {
                 </div>
                 <div className="user-details">
                   <h4>{u.username}</h4>
-                  <p>{isOnline ? 'Online' : 'Offline'}</p>
+                  <p>{isOnline ? 'Online' : 'Click to message'}</p>
                 </div>
               </div>
             );
@@ -212,51 +208,69 @@ export default function Chat() {
         </div>
       </div>
 
+      {/* Main Chat Area or Welcome Screen */}
       <div className="main-chat">
-        <header className="chat-header">
-          <button className="back-btn" onClick={() => setIsChatOpen(false)}>
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
+        {(!selectedUser && messages.length === 0 && !isChatOpen) ? (
+          <div className="welcome-screen">
+            <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="currentColor" strokeWidth="1">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-          </button>
-          <div className="avatar" style={{ background: selectedUser ? `hsl(${selectedUser.username.length * 40}, 60%, 50%)` : '#334155' }}>
-            {selectedUser ? selectedUser.username[0].toUpperCase() : '#'}
-          </div>
-          <div className="header-info" style={{ marginLeft: '12px' }}>
-            <h2>{selectedUser ? selectedUser.username : 'Global Chat'}</h2>
-            <p style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>
-              {typingUsers.size > 0 ? 'Typing...' : (selectedUser ? (onlineUsers.includes(selectedUser.id) ? 'Online' : 'Offline') : 'Public Group')}
+            <h1 style={{ fontSize: '32px', fontWeight: '300' }}>Pulse for Web</h1>
+            <p style={{ color: 'var(--wa-text-secondary)', marginTop: '10px', maxWidth: '350px' }}>
+              Send and receive messages without keeping your phone online.
             </p>
+            <div style={{ marginTop: '40px', fontSize: '14px', color: 'var(--wa-text-secondary)' }}>
+              🔒 End-to-end encrypted
+            </div>
           </div>
-        </header>
+        ) : (
+          <>
+            <header className="chat-header">
+              <button className="back-btn" onClick={() => setIsChatOpen(false)}>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <div className="avatar" style={{ background: selectedUser ? `hsl(${selectedUser.username.length * 40}, 60%, 50%)` : '#00a884' }}>
+                {selectedUser ? selectedUser.username[0].toUpperCase() : '#'}
+              </div>
+              <div className="header-info" style={{ marginLeft: '12px' }}>
+                <h2>{selectedUser ? selectedUser.username : 'Global Community'}</h2>
+                <p style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>
+                  {typingUsers.size > 0 ? 'Typing...' : (selectedUser ? (onlineUsers.includes(selectedUser.id) ? 'Online' : 'Offline') : 'Public Group')}
+                </p>
+              </div>
+            </header>
 
-        <div className="messages-area">
-          {messages.map((msg) => (
-            <MessageBubble key={msg._id} message={msg} isOwn={msg.sender === user.id} />
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+            <div className="messages-area">
+              {messages.map((msg) => (
+                <MessageBubble key={msg._id} message={msg} isOwn={msg.sender === user.id} />
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
 
-        <form className="message-form" onSubmit={handleSendMessage}>
-          <ImageUpload onImageReady={(imageUrl) => {
-            socket.emit('sendMessage', { image: imageUrl, recipientId: selectedUser?.id || null });
-          }} />
-          <input
-            type="text"
-            placeholder="Type a message"
-            value={newMessage}
-            onChange={(e) => {
-              setNewMessage(e.target.value);
-              if (socket) socket.emit(e.target.value ? 'typing' : 'stopTyping');
-            }}
-            autoComplete="off"
-          />
-          <button type="submit" className="send-btn" disabled={!newMessage.trim()}>
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-              <path d="M1.101,21.757L23.8,12.028L1.101,2.3L1.1,10.136l13.569,1.892L1.1,13.921L1.101,21.757z" />
-            </svg>
-          </button>
-        </form>
+            <form className="message-form" onSubmit={handleSendMessage}>
+              <ImageUpload onImageReady={(imageUrl) => {
+                socket.emit('sendMessage', { image: imageUrl, recipientId: selectedUser?.id || null });
+              }} />
+              <input
+                type="text"
+                placeholder="Type a message"
+                value={newMessage}
+                onChange={(e) => {
+                  setNewMessage(e.target.value);
+                  if (socket) socket.emit(e.target.value ? 'typing' : 'stopTyping');
+                }}
+                autoComplete="off"
+              />
+              <button type="submit" className="send-btn" disabled={!newMessage.trim()}>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <path d="M1.101,21.757L23.8,12.028L1.101,2.3L1.1,10.136l13.569,1.892L1.1,13.921L1.101,21.757z" />
+                </svg>
+              </button>
+            </form>
+          </>
+        )}
       </div>
 
       {notification && (
