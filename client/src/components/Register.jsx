@@ -1,23 +1,24 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { API_URL } from '../utils/api.js';
 
-export default function Register({ onSwitch }) {
-  const { login } = useAuth();
+export default function Register() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+      return setError('Passwords do not match');
     }
 
     setLoading(true);
@@ -31,84 +32,88 @@ export default function Register({ onSwitch }) {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.message || 'Registration failed');
+      if (res.ok) {
+        login(data.user, data.token);
+        navigate('/');
+      } else {
+        setError(data.message || 'Registration failed');
       }
-
-      login(data.user, data.token);
     } catch (err) {
-      setError(err.message);
+      setError('Connection error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit} id="register-form">
-      {error && <div className="auth-error">{error}</div>}
-      <div className="form-group">
-        <label htmlFor="register-username">Username</label>
-        <input
-          id="register-username"
-          type="text"
-          placeholder="cooluser123"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          minLength={3}
-          maxLength={20}
-          autoComplete="username"
-        />
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-header">
+          <div className="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <h1>Join Pulse Chat</h1>
+          <p>The most beautiful way to stay connected.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          {error && <div className="error-message">{error}</div>}
+          
+          <div className="input-group">
+            <label>Username</label>
+            <input
+              type="text"
+              placeholder="CoolUser123"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Email Address</label>
+            <input
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Confirm Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? 'Creating Account...' : 'Create Account'}
+          </button>
+        </form>
+
+        <div className="auth-footer">
+          Already have an account? <Link to="/login">Sign in</Link>
+        </div>
       </div>
-      <div className="form-group">
-        <label htmlFor="register-email">Email</label>
-        <input
-          id="register-email"
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-        />
-      </div>
-      <div className="form-group">
-        <label htmlFor="register-password">Password</label>
-        <input
-          id="register-password"
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-          autoComplete="new-password"
-        />
-      </div>
-      <div className="form-group">
-        <label htmlFor="register-confirm">Confirm Password</label>
-        <input
-          id="register-confirm"
-          type="password"
-          placeholder="••••••••"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          minLength={6}
-          autoComplete="new-password"
-        />
-      </div>
-      <button type="submit" className="auth-btn" disabled={loading} id="register-submit">
-        {loading ? (
-          <span className="btn-loader"></span>
-        ) : (
-          'Create Account'
-        )}
-      </button>
-      <p className="auth-switch">
-        Already have an account?{' '}
-        <button type="button" onClick={onSwitch}>Sign in</button>
-      </p>
-    </form>
+    </div>
   );
 }
