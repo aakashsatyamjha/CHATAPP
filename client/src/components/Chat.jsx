@@ -40,20 +40,21 @@ export default function Chat() {
 
   const removeNotification = useCallback((id) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+  };
 
-  // Request browser notification permission
   useEffect(() => {
-    if ('Notification' in window && window.Notification.permission === 'default') {
-      window.Notification.requestPermission();
-    }
-  }, []);
+    scrollToBottom();
+  }, [messages]);
 
-  // Load message history
+  // Load messages
   useEffect(() => {
     const loadMessages = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/messages`, {
+        const url = selectedUser 
+          ? `${API_URL}/api/messages?recipientId=${selectedUser._id}`
+          : `${API_URL}/api/messages`;
+        
+        const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -64,34 +65,47 @@ export default function Chat() {
         console.error('Failed to load messages:', err);
       }
     };
-    loadMessages();
-  }, [token]);
+
+    if (token) loadMessages();
+  }, [token, selectedUser]);
 
   // Socket connection
   useEffect(() => {
-    const socket = io(SOCKET_URL, {
+    const s = io(SOCKET_URL, {
       auth: { token },
     });
 
-    socketRef.current = socket;
+    setSocket(s);
 
-    socket.on('connect', () => setConnected(true));
-    socket.on('disconnect', () => setConnected(false));
+    s.on('newMessage', (msg) => {
+      // Only add message if it's relevant to the current conversation
+      const isGlobal = !msg.recipient && !selectedUser;
+      const isPrivate = selectedUser && (
+        (msg.sender === selectedUser._id && msg.recipient === user.id) ||
+        (msg.sender === user.id && msg.recipient === selectedUser._id)
+      );
 
-    socket.on('newMessage', (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      if (isGlobal || isPrivate) {
+        setMessages((prev) => [...prev, msg]);
+      }
+      
       if (msg.sender !== user.id) {
-        addNotification(msg);
+        new Notification(`New message from ${msg.senderName}`, {
+          body: msg.content,
+        });
       }
     });
 
-    socket.on('onlineUsers', (users) => {
-      setOnlineUsers(users);
+    s.on('onlineUsers', (users) => {
+      setOnlineUsers(users.filter(u => u.userId !== user.id));
     });
 
-    socket.on('userTyping', ({ username }) => {
+    s.on('userTyping', ({ username }) => {
+      setTypingUsers((prev) => new Set(prev).add(username));
+    });
+
+    s.on('userStopTyping', ({ username }) => {
       setTypingUsers((prev) => {
-        if (prev.includes(username)) return prev;
         return [...prev, username];
       });
     });

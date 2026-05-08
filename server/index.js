@@ -97,29 +97,37 @@ io.on('connection', (socket) => {
     username: socket.username,
     socketId: socket.id,
   });
+  userSockets.set(socket.userId, socket.id);
   io.emit('onlineUsers', Array.from(onlineUsers.values()));
 
-  // Handle sending a message
+  // Handle sending message
   socket.on('sendMessage', async (data) => {
     try {
-      const message = new Message({
+      const { content, image, recipientId } = data;
+      const newMessage = new Message({
         sender: socket.userId,
         senderName: socket.username,
-        content: data.content || '',
-        image: data.image || null,
+        recipient: recipientId || null,
+        content,
+        image,
       });
-      await message.save();
 
-      io.emit('newMessage', {
-        _id: message._id,
-        sender: socket.userId,
-        senderName: socket.username,
-        content: message.content,
-        image: message.image,
-        createdAt: message.createdAt,
-      });
-    } catch (err) {
-      console.error('Error saving message:', err);
+      await newMessage.save();
+
+      if (recipientId) {
+        // Private message: emit only to sender and recipient
+        const recipientSocketId = userSockets.get(recipientId);
+        if (recipientSocketId) {
+          io.to(recipientSocketId).emit('newMessage', newMessage);
+        }
+        // Also send back to the sender so they see their own message
+        socket.emit('newMessage', newMessage);
+      } else {
+        // Public message: broadcast to all
+        io.emit('newMessage', newMessage);
+      }
+    } catch (error) {
+      console.error('Send message error:', error);
     }
   });
 

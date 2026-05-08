@@ -35,11 +35,25 @@ const upload = multer({
 // GET /api/messages — Fetch recent messages
 router.get('/', auth, async (req, res) => {
   try {
-    const messages = await Message.find()
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .lean();
+    const { recipientId } = req.query;
+    let query = {};
 
+    if (recipientId) {
+      // Fetch private messages between current user and recipient
+      query = {
+        $or: [
+          { sender: req.user._id, recipient: recipientId },
+          { sender: recipientId, recipient: req.user._id }
+        ]
+      };
+    } else {
+      // Fetch public messages
+      query = { recipient: null };
+    }
+
+    const messages = await Message.find(query)
+      .sort({ createdAt: -1 })
+      .limit(50);
     res.json(messages.reverse());
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
