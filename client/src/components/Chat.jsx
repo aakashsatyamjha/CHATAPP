@@ -78,7 +78,8 @@ export default function Chat() {
     });
 
     s.on('onlineUsers', (users) => {
-      setOnlineUsers(users.filter(u => u.userId !== user.id));
+      // FIX: use 'u.id' instead of 'u.userId' to correctly filter yourself out
+      setOnlineUsers(users.filter(u => u.id !== user.id));
     });
 
     s.on('userTyping', ({ username }) => {
@@ -138,13 +139,19 @@ export default function Chat() {
             </div>
           </div>
 
-          <div className="section-title">CHATS</div>
-          {onlineUsers.map((u) => (
-            <div key={u.userId} className={`user-item ${selectedUser?._id === u.userId ? 'active' : ''}`} onClick={() => selectUser({ _id: u.userId, username: u.username })}>
-              <div className="avatar">{u.username[0].toUpperCase()}</div>
+          <div className="section-title">PRIVATE MESSAGES</div>
+          {filteredUsers.map((u) => (
+            <div 
+              key={u.id} 
+              className={`user-item ${selectedUser?._id === u.id ? 'active' : ''}`}
+              onClick={() => selectUser({ _id: u.id, username: u.username })}
+            >
+              <div className="avatar" style={{ background: `hsl(${u.username.length * 40}, 60%, 50%)` }}>
+                {u.username[0].toUpperCase()}
+              </div>
               <div className="user-details">
                 <h4>{u.username}</h4>
-                <p>Online</p>
+                <p>Click to chat privately</p>
               </div>
             </div>
           ))}
