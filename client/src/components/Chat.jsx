@@ -38,10 +38,6 @@ export default function Chat() {
     }
   }, []);
 
-  const removeNotification = useCallback((id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
-
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -106,7 +102,9 @@ export default function Chat() {
 
     s.on('userStopTyping', ({ username }) => {
       setTypingUsers((prev) => {
-        return [...prev, username];
+        const next = new Set(prev);
+        next.delete(username);
+        return next;
       });
     });
 
