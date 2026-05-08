@@ -13,8 +13,11 @@ export default function Chat() {
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [socket, setSocket] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [notification, setNotification] = useState(null);
   const messagesEndRef = useRef(null);
+
+  // Mobile state: if true, we show the chat window; if false, we show the user list.
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -24,6 +27,13 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
+  // Handle Notifications
+  const showToast = (msg) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  // Load messages
   useEffect(() => {
     const loadMessages = async () => {
       try {
@@ -46,14 +56,13 @@ export default function Chat() {
     if (token) loadMessages();
   }, [token, selectedUser]);
 
+  // Socket setup
   useEffect(() => {
-    const s = io(SOCKET_URL, {
-      auth: { token },
-    });
-
+    const s = io(SOCKET_URL, { auth: { token } });
     setSocket(s);
 
     s.on('newMessage', (msg) => {
+      // Check if message belongs to current chat
       const isGlobalMsg = !msg.recipient && !selectedUser;
       const isPrivateMsg = selectedUser && (
         (msg.sender === selectedUser._id && msg.recipient === user.id) ||
@@ -62,6 +71,9 @@ export default function Chat() {
 
       if (isGlobalMsg || isPrivateMsg) {
         setMessages((prev) => [...prev, msg]);
+      } else if (msg.sender !== user.id) {
+        // Show notification for messages in other rooms
+        showToast(msg);
       }
     });
 
@@ -96,44 +108,30 @@ export default function Chat() {
     socket.emit('stopTyping');
   };
 
-  const filteredUsers = onlineUsers.filter(u => 
-    u.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const selectUser = (u) => {
+    setSelectedUser(u);
+    setIsChatOpen(true);
+  };
 
   return (
     <div className="chat-container">
-      <div className="sidebar">
+      {/* Sidebar: hidden on mobile when chat is open */}
+      <div className={`sidebar ${isChatOpen ? 'hidden' : ''}`}>
         <div className="user-profile">
           <div className="avatar">{user.username[0].toUpperCase()}</div>
-          <div className="header-actions">
-             <button onClick={logout} className="logout-btn" title="Logout">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-              </svg>
-            </button>
+          <div style={{ marginLeft: '12px', flex: 1 }}>
+            <h3>{user.username}</h3>
           </div>
-        </div>
-
-        <div className="sidebar-search">
-          <div className="search-inner">
-            <svg viewBox="0 0 24 24" width="18" fill="none" stroke="#8696a0" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <button onClick={logout} className="logout-btn" title="Logout">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
             </svg>
-            <input 
-              type="text" 
-              placeholder="Search or start new chat" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          </button>
         </div>
 
         <div className="users-list">
-          <div 
-            className={`user-item ${!selectedUser ? 'active' : ''}`}
-            onClick={() => setSelectedUser(null)}
-          >
-            <div className="avatar global">#</div>
+          <div className={`user-item ${!selectedUser ? 'active' : ''}`} onClick={() => selectUser(null)}>
+            <div className="avatar" style={{ background: '#334155' }}>#</div>
             <div className="user-details">
               <h4>Global Chat</h4>
               <p>Public Room</p>
@@ -141,12 +139,8 @@ export default function Chat() {
           </div>
 
           <div className="section-title">CHATS</div>
-          {filteredUsers.map((u) => (
-            <div 
-              key={u.userId} 
-              className={`user-item ${selectedUser?._id === u.userId ? 'active' : ''}`}
-              onClick={() => setSelectedUser({ _id: u.userId, username: u.username })}
-            >
+          {onlineUsers.map((u) => (
+            <div key={u.userId} className={`user-item ${selectedUser?._id === u.userId ? 'active' : ''}`} onClick={() => selectUser({ _id: u.userId, username: u.username })}>
               <div className="avatar">{u.username[0].toUpperCase()}</div>
               <div className="user-details">
                 <h4>{u.username}</h4>
@@ -157,38 +151,35 @@ export default function Chat() {
         </div>
       </div>
 
+      {/* Main Chat Area */}
       <div className="main-chat">
         <header className="chat-header">
+          <button className="back-btn" onClick={() => setIsChatOpen(false)}>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
           <div className="avatar">
             {selectedUser ? selectedUser.username[0].toUpperCase() : '#'}
           </div>
-          <div className="header-info">
+          <div className="header-info" style={{ marginLeft: '12px' }}>
             <h2>{selectedUser ? selectedUser.username : 'Global Chat'}</h2>
-            <p className="status-text">
-              {typingUsers.size > 0 
-                ? `${Array.from(typingUsers).join(', ')} is typing...` 
-                : (selectedUser ? 'Online' : 'Public Group')}
+            <p style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>
+              {typingUsers.size > 0 ? 'Typing...' : (selectedUser ? 'Online' : 'Public Group')}
             </p>
           </div>
         </header>
 
         <div className="messages-area">
           {messages.map((msg) => (
-            <MessageBubble 
-              key={msg._id} 
-              message={msg} 
-              isOwn={msg.sender === user.id} 
-            />
+            <MessageBubble key={msg._id} message={msg} isOwn={msg.sender === user.id} />
           ))}
           <div ref={messagesEndRef} />
         </div>
 
         <form className="message-form" onSubmit={handleSendMessage}>
           <ImageUpload onImageReady={(imageUrl) => {
-            socket.emit('sendMessage', { 
-              image: imageUrl,
-              recipientId: selectedUser?._id || null 
-            });
+            socket.emit('sendMessage', { image: imageUrl, recipientId: selectedUser?._id || null });
           }} />
           <input
             type="text"
@@ -198,14 +189,25 @@ export default function Chat() {
               setNewMessage(e.target.value);
               if (socket) socket.emit(e.target.value ? 'typing' : 'stopTyping');
             }}
+            autoComplete="off"
           />
           <button type="submit" className="send-btn" disabled={!newMessage.trim()}>
-            <svg viewBox="0 0 24 24" fill="currentColor">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
               <path d="M1.101,21.757L23.8,12.028L1.101,2.3L1.1,10.136l13.569,1.892L1.1,13.921L1.101,21.757z" />
             </svg>
           </button>
         </form>
       </div>
+
+      {/* Notification Toast */}
+      {notification && (
+        <div className="notification-toast" onClick={() => selectUser({ _id: notification.sender, username: notification.senderName })}>
+          <strong>New message from {notification.senderName}</strong>
+          <p style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>
+            {notification.content || 'Sent an image'}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

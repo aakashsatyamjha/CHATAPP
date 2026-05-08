@@ -154,6 +154,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`❌ User disconnected: ${socket.username}`);
     onlineUsers.delete(socket.userId);
+    userSockets.delete(socket.userId); // CLEAN UP!
     io.emit('onlineUsers', Array.from(onlineUsers.values()));
   });
 });
