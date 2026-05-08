@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext.jsx';
 import MessageBubble from './MessageBubble.jsx';
@@ -12,7 +12,8 @@ export default function Chat() {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [socket, setSocket] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null); // null means Global Chat
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -23,7 +24,6 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
-  // Load messages
   useEffect(() => {
     const loadMessages = async () => {
       try {
@@ -46,7 +46,6 @@ export default function Chat() {
     if (token) loadMessages();
   }, [token, selectedUser]);
 
-  // Socket connection
   useEffect(() => {
     const s = io(SOCKET_URL, {
       auth: { token },
@@ -55,7 +54,6 @@ export default function Chat() {
     setSocket(s);
 
     s.on('newMessage', (msg) => {
-      // Logic for adding message to UI
       const isGlobalMsg = !msg.recipient && !selectedUser;
       const isPrivateMsg = selectedUser && (
         (msg.sender === selectedUser._id && msg.recipient === user.id) ||
@@ -65,19 +63,9 @@ export default function Chat() {
       if (isGlobalMsg || isPrivateMsg) {
         setMessages((prev) => [...prev, msg]);
       }
-      
-      // Notification logic
-      if (msg.sender !== user.id) {
-        if ('Notification' in window && window.Notification.permission === 'granted') {
-          new window.Notification(`New from ${msg.senderName}`, {
-            body: msg.content || 'Sent an image',
-          });
-        }
-      }
     });
 
     s.on('onlineUsers', (users) => {
-      // Filter out self
       setOnlineUsers(users.filter(u => u.userId !== user.id));
     });
 
@@ -108,31 +96,36 @@ export default function Chat() {
     socket.emit('stopTyping');
   };
 
-  const handleTyping = (e) => {
-    setNewMessage(e.target.value);
-    if (socket) {
-      if (e.target.value.length > 0) {
-        socket.emit('typing');
-      } else {
-        socket.emit('stopTyping');
-      }
-    }
-  };
+  const filteredUsers = onlineUsers.filter(u => 
+    u.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="chat-container">
       <div className="sidebar">
         <div className="user-profile">
-          <div className="avatar">{user.username[0]}</div>
-          <div className="user-info">
-            <h3>{user.username}</h3>
-            <span className="status">Online</span>
+          <div className="avatar">{user.username[0].toUpperCase()}</div>
+          <div className="header-actions">
+             <button onClick={logout} className="logout-btn" title="Logout">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+              </svg>
+            </button>
           </div>
-          <button onClick={logout} className="logout-btn" title="Logout">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+        </div>
+
+        <div className="sidebar-search">
+          <div className="search-inner">
+            <svg viewBox="0 0 24 24" width="18" fill="none" stroke="#8696a0" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-          </button>
+            <input 
+              type="text" 
+              placeholder="Search or start new chat" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="users-list">
@@ -141,22 +134,21 @@ export default function Chat() {
             onClick={() => setSelectedUser(null)}
           >
             <div className="avatar global">#</div>
-            <div className="user-info">
+            <div className="user-details">
               <h4>Global Chat</h4>
               <p>Public Room</p>
             </div>
           </div>
 
-          <div className="section-title">Private Messages</div>
-          {onlineUsers.length === 0 && <p className="no-users">No other users online</p>}
-          {onlineUsers.map((u) => (
+          <div className="section-title">CHATS</div>
+          {filteredUsers.map((u) => (
             <div 
               key={u.userId} 
               className={`user-item ${selectedUser?._id === u.userId ? 'active' : ''}`}
               onClick={() => setSelectedUser({ _id: u.userId, username: u.username })}
             >
-              <div className="avatar">{u.username[0]}</div>
-              <div className="user-info">
+              <div className="avatar">{u.username[0].toUpperCase()}</div>
+              <div className="user-details">
                 <h4>{u.username}</h4>
                 <p>Online</p>
               </div>
@@ -166,24 +158,21 @@ export default function Chat() {
       </div>
 
       <div className="main-chat">
-        <div className="chat-header">
-          <div className="header-text">
-            <h2>{selectedUser ? `Chat with ${selectedUser.username}` : 'Global Chat'}</h2>
+        <header className="chat-header">
+          <div className="avatar">
+            {selectedUser ? selectedUser.username[0].toUpperCase() : '#'}
+          </div>
+          <div className="header-info">
+            <h2>{selectedUser ? selectedUser.username : 'Global Chat'}</h2>
             <p className="status-text">
-              {selectedUser ? 'Private Conversation' : 'Public Room'}
+              {typingUsers.size > 0 
+                ? `${Array.from(typingUsers).join(', ')} is typing...` 
+                : (selectedUser ? 'Online' : 'Public Group')}
             </p>
           </div>
-          <div className="typing-indicator-text">
-            {typingUsers.size > 0 && `${Array.from(typingUsers).join(', ')} is typing...`}
-          </div>
-        </div>
+        </header>
 
         <div className="messages-area">
-          {messages.length === 0 && (
-            <div className="empty-state">
-              <p>No messages here yet. Start the conversation!</p>
-            </div>
-          )}
           {messages.map((msg) => (
             <MessageBubble 
               key={msg._id} 
@@ -203,14 +192,16 @@ export default function Chat() {
           }} />
           <input
             type="text"
-            placeholder={selectedUser ? `Message ${selectedUser.username}...` : "Type a message..."}
+            placeholder="Type a message"
             value={newMessage}
-            onChange={handleTyping}
-            autoComplete="off"
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              if (socket) socket.emit(e.target.value ? 'typing' : 'stopTyping');
+            }}
           />
           <button type="submit" className="send-btn" disabled={!newMessage.trim()}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M1.101,21.757L23.8,12.028L1.101,2.3L1.1,10.136l13.569,1.892L1.1,13.921L1.101,21.757z" />
             </svg>
           </button>
         </form>
