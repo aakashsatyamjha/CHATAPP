@@ -30,8 +30,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      const allowedOrigins = ['http://localhost:5173', process.env.FRONTEND_URL].filter(Boolean);
-      if (!origin || allowedOrigins.includes(origin)) {
+      const allowed = getAllowedOrigins();
+      if (!origin || allowed.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -42,21 +42,31 @@ const io = new Server(server, {
 });
 
 // Middleware
-const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.FRONTEND_URL, // We will set this in Render
-].filter(Boolean);
+const userSockets = new Map(); // Store userId -> socketId mapping
 
-app.use(cors({
+const getAllowedOrigins = () => {
+  const origins = ['http://localhost:5173'];
+  if (process.env.FRONTEND_URL) {
+    const fe = process.env.FRONTEND_URL.trim().replace(/\/$/, '');
+    origins.push(fe);
+    origins.push(fe + '/');
+  }
+  return origins;
+};
+
+const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    const allowed = getAllowedOrigins();
+    if (!origin || allowed.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-}));
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
 
