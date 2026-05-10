@@ -1,6 +1,18 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-dark-bg: #0B0D0F;
+  --color-dark-sidebar: #121417;
+  --color-dark-card: #1A1D21;
+  --color-dark-header: #1E2227;
+  --color-dark-border: #2A2F35;
+  --color-dark-active: #2A3942;
+  
+  --color-primary: #00A884;
+  --color-primary-hover: #008F6F;
+  
+  --color-secondary-text: #8696A0;
+}
 
 @layer base {
   body {
