@@ -4,12 +4,18 @@ import { useAuth } from './context/AuthContext.jsx';
 import Login from './components/Login.jsx';
 import Register from './components/Register.jsx';
 import Chat from './components/Chat.jsx';
+import ForgotPassword from './components/ForgotPassword.jsx';
 
 export default function App() {
   const { user } = useAuth();
 
   return (
-    <Router>
+    <>
+      <div className="glow-bg">
+        <div className="blob blob-1"></div>
+        <div className="blob blob-2"></div>
+      </div>
+      <Router>
       <Routes>
         <Route 
           path="/login" 
@@ -20,10 +26,15 @@ export default function App() {
           element={!user ? <Register /> : <Navigate to="/" />} 
         />
         <Route 
+          path="/forgot-password" 
+          element={<ForgotPassword />} 
+        />
+        <Route 
           path="/" 
           element={user ? <Chat /> : <Navigate to="/login" />} 
         />
       </Routes>
     </Router>
+    </>
   );
 }
