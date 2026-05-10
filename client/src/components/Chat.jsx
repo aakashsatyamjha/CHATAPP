@@ -16,8 +16,8 @@ export default function Chat() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [notification, setNotification] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [unreadCounts, setUnreadCounts] = useState({});
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -27,21 +27,6 @@ export default function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.body.classList.add('dark-mode');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.body.classList.remove('dark-mode');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDarkMode]);
-
-  const showToast = (msg) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 3000);
-  };
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -62,7 +47,6 @@ export default function Chat() {
 
   useEffect(() => {
     const loadMessages = async () => {
-      if (!selectedUser && messages.length > 0) return; // Don't clear if staying on global
       try {
         const url = selectedUser 
           ? `${API_URL}/api/messages?recipientId=${selectedUser.id}`
@@ -97,7 +81,18 @@ export default function Chat() {
       if (isGlobalMsg || isPrivateMsg) {
         setMessages((prev) => [...prev, msg]);
       } else if (msg.sender !== user.id) {
-        showToast(msg);
+        // Increment unread count for the sender
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [msg.sender || 'global']: (prev[msg.sender || 'global'] || 0) + 1
+        }));
+
+        setNotification({
+          sender: msg.sender,
+          senderName: msg.senderName,
+          content: msg.content
+        });
+        setTimeout(() => setNotification(null), 4000);
       }
     });
 
@@ -134,8 +129,12 @@ export default function Chat() {
 
   const selectUser = (u) => {
     setSelectedUser(u);
-    setIsChatOpen(true);
-    setSearchTerm('');
+    // Clear unread count when selecting the user/group
+    setUnreadCounts((prev) => ({
+      ...prev,
+      [u?.id || 'global']: 0
+    }));
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
   const filteredUsers = allUsers.filter(u => 
@@ -143,142 +142,229 @@ export default function Chat() {
   );
 
   return (
-    <div className="chat-container">
+    <div className="flex h-screen bg-dark-bg text-gray-100 overflow-hidden font-sans">
       {/* Sidebar */}
-      <div className={`sidebar ${isChatOpen ? 'hidden' : ''}`}>
-        <div className="user-profile">
-          <div className="avatar" style={{ background: '#54656f' }}>
-            {user.username[0].toUpperCase()}
+      <aside className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:static inset-y-0 left-0 w-80 bg-dark-sidebar border-r border-dark-border z-30 transition-transform duration-300 ease-in-out flex flex-col`}>
+        {/* User Profile Header */}
+        <div className="p-4 bg-dark-header/50 backdrop-blur-md flex items-center justify-between border-b border-dark-border">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/20">
+              {user.username[0].toUpperCase()}
+            </div>
+            <div className="flex flex-col">
+              <span className="font-semibold text-sm">{user.username}</span>
+              <span className="text-[10px] text-primary flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>
+                Online
+              </span>
+            </div>
           </div>
-          <div style={{ marginLeft: '12px', flex: 1 }}>
-            <h3 style={{ fontSize: '15px', fontWeight: '600' }}>{user.username}</h3>
-          </div>
-          <div className="header-actions" style={{ display: 'flex', gap: '4px' }}>
-            <button className="theme-toggle" onClick={() => setIsDarkMode(!isDarkMode)} title="Toggle Theme">
-              {isDarkMode ? '☀️' : '🌙'}
-            </button>
-            <button onClick={logout} className="logout-btn" title="Logout">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-              </svg>
-            </button>
-          </div>
+          <button onClick={logout} className="p-2 hover:bg-red-500/10 text-gray-400 hover:text-red-500 rounded-lg transition-colors">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
+          </button>
         </div>
 
-        <div className="sidebar-search">
-          <div className="search-inner">
-            <svg viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" strokeWidth="2">
+        {/* Search */}
+        <div className="p-4">
+          <div className="relative group">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input 
               type="text" 
-              placeholder="Search or start new chat" 
+              placeholder="Search conversations..." 
+              className="w-full bg-dark-bg border border-dark-border rounded-xl py-2 pl-10 pr-4 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-gray-600"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="users-list">
-          <div className={`user-item ${!selectedUser ? 'active' : ''}`} onClick={() => selectUser(null)}>
-            <div className="avatar" style={{ background: '#00a884' }}>#</div>
-            <div className="user-details">
-              <h4>Global Community</h4>
-              <p>Public Group Chat</p>
+        {/* Users List */}
+        <div className="flex-1 overflow-y-auto chat-scrollbar">
+          {/* Global Chat Item */}
+          <div 
+            onClick={() => selectUser(null)}
+            className={`flex items-center gap-3 p-4 cursor-pointer transition-all border-l-4 ${!selectedUser ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-dark-active'}`}
+          >
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center text-white font-bold shadow-lg shadow-primary/10">
+              #
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-semibold truncate text-white">Global Community</h4>
+                {unreadCounts['global'] > 0 && (
+                  <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce">
+                    {unreadCounts['global']}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-secondary-text truncate">Public Group Chat</p>
             </div>
           </div>
 
-          <div className="section-title">{searchTerm ? 'Search Results' : 'Contacts'}</div>
-          
+          <div className="px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Contacts</div>
+
           {filteredUsers.map((u) => {
             const isOnline = onlineUsers.includes(u.id);
             return (
-              <div key={u.id} className={`user-item ${selectedUser?.id === u.id ? 'active' : ''}`} onClick={() => selectUser({ id: u.id, username: u.username })}>
-                <div className="avatar" style={{ background: `hsl(${u.username.length * 40}, 60%, 50%)` }}>
-                  {u.username[0].toUpperCase()}
-                  {isOnline && <div className="online-indicator" />}
+              <div 
+                key={u.id} 
+                onClick={() => selectUser({ id: u.id, username: u.username })}
+                className={`flex items-center gap-3 p-4 cursor-pointer transition-all border-l-4 ${selectedUser?.id === u.id ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-dark-active'}`}
+              >
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md" style={{ background: `linear-gradient(135deg, hsl(${u.username.length * 40}, 60%, 50%), hsl(${u.username.length * 40 + 40}, 60%, 40%))` }}>
+                    {u.username[0].toUpperCase()}
+                  </div>
+                  {isOnline && (
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-primary border-2 border-dark-sidebar rounded-full"></div>
+                  )}
                 </div>
-                <div className="user-details">
-                  <h4>{u.username}</h4>
-                  <p>{isOnline ? 'Online' : 'Click to message'}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-semibold truncate text-white">{u.username}</h4>
+                    {unreadCounts[u.id] > 0 && (
+                      <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce">
+                        {unreadCounts[u.id]}
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-xs truncate ${isOnline ? 'text-primary' : 'text-secondary-text'}`}>
+                    {isOnline ? 'Online' : 'Offline'}
+                  </p>
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </aside>
 
-      {/* Main Chat Area or Welcome Screen */}
-      <div className="main-chat">
-        {(!selectedUser && messages.length === 0 && !isChatOpen) ? (
-          <div className="welcome-screen">
-            <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="currentColor" strokeWidth="1">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      {/* Main Chat Area */}
+      <main className="flex-1 flex flex-col relative bg-dark-bg">
+        {/* Mobile Header Toggle */}
+        <div className="md:hidden p-4 flex items-center gap-3 bg-dark-header border-b border-dark-border">
+          <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-dark-active rounded-lg transition-colors">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-            <h1 style={{ fontSize: '32px', fontWeight: '300' }}>Pulse for Web</h1>
-            <p style={{ color: 'var(--wa-text-secondary)', marginTop: '10px', maxWidth: '350px' }}>
-              Send and receive messages without keeping your phone online.
-            </p>
-            <div style={{ marginTop: '40px', fontSize: '14px', color: 'var(--wa-text-secondary)' }}>
-              🔒 End-to-end encrypted
-            </div>
+          </button>
+          <h2 className="font-semibold">{selectedUser ? selectedUser.username : 'Global Community'}</h2>
+        </div>
+
+        {(!selectedUser && messages.length === 0) ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
+             <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 animate-bounce">
+                <svg viewBox="0 0 24 24" className="w-12 h-12 text-primary" fill="none" stroke="currentColor" strokeWidth="1">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+             </div>
+             <h1 className="text-4xl font-bold tracking-tight mb-2">Pulse Advanced</h1>
+             <p className="text-secondary-text max-w-sm">Select a contact to start an encrypted private conversation.</p>
+             <div className="mt-8 flex gap-4">
+                <span className="px-3 py-1 rounded-full bg-dark-border text-[10px] font-bold text-gray-400">SSL ENCRYPTED</span>
+                <span className="px-3 py-1 rounded-full bg-dark-border text-[10px] font-bold text-gray-400">REAL-TIME</span>
+             </div>
           </div>
         ) : (
           <>
-            <header className="chat-header">
-              <button className="back-btn" onClick={() => setIsChatOpen(false)}>
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 12H5M12 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <div className="avatar" style={{ background: selectedUser ? `hsl(${selectedUser.username.length * 40}, 60%, 50%)` : '#00a884' }}>
-                {selectedUser ? selectedUser.username[0].toUpperCase() : '#'}
+            {/* Chat Header */}
+            <header className="hidden md:flex p-4 items-center justify-between bg-dark-header/80 backdrop-blur-xl border-b border-dark-border sticky top-0 z-20">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg" style={{ background: selectedUser ? `linear-gradient(135deg, hsl(${selectedUser.username.length * 40}, 60%, 50%), hsl(${selectedUser.username.length * 40 + 40}, 60%, 40%))` : 'linear-gradient(135deg, #00A884, #008F6F)' }}>
+                  {selectedUser ? selectedUser.username[0].toUpperCase() : '#'}
+                </div>
+                <div>
+                  <h2 className="font-bold text-lg leading-tight">{selectedUser ? selectedUser.username : 'Global Community'}</h2>
+                  <p className="text-xs text-secondary-text">
+                    {typingUsers.size > 0 ? (
+                      <span className="text-primary italic animate-pulse">
+                        {Array.from(typingUsers).join(', ')} typing...
+                      </span>
+                    ) : (selectedUser ? (onlineUsers.includes(selectedUser.id) ? 'Online' : 'Offline') : 'Public Group')}
+                  </p>
+                </div>
               </div>
-              <div className="header-info" style={{ marginLeft: '12px' }}>
-                <h2>{selectedUser ? selectedUser.username : 'Global Community'}</h2>
-                <p style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>
-                  {typingUsers.size > 0 ? 'Typing...' : (selectedUser ? (onlineUsers.includes(selectedUser.id) ? 'Online' : 'Offline') : 'Public Group')}
-                </p>
+              <div className="flex gap-2">
+                 <button className="p-2 hover:bg-dark-active rounded-xl transition-colors text-gray-400">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                 </button>
+                 <button className="p-2 hover:bg-dark-active rounded-xl transition-colors text-gray-400">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+                    </svg>
+                 </button>
               </div>
             </header>
 
-            <div className="messages-area">
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 chat-scrollbar bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed">
               {messages.map((msg) => (
                 <MessageBubble key={msg._id} message={msg} isOwn={msg.sender === user.id} />
               ))}
               <div ref={messagesEndRef} />
             </div>
 
-            <form className="message-form" onSubmit={handleSendMessage}>
-              <ImageUpload onImageReady={(imageUrl) => {
-                socket.emit('sendMessage', { image: imageUrl, recipientId: selectedUser?.id || null });
-              }} />
-              <input
-                type="text"
-                placeholder="Type a message"
-                value={newMessage}
-                onChange={(e) => {
-                  setNewMessage(e.target.value);
-                  if (socket) socket.emit(e.target.value ? 'typing' : 'stopTyping');
-                }}
-                autoComplete="off"
-              />
-              <button type="submit" className="send-btn" disabled={!newMessage.trim()}>
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                  <path d="M1.101,21.757L23.8,12.028L1.101,2.3L1.1,10.136l13.569,1.892L1.1,13.921L1.101,21.757z" />
-                </svg>
-              </button>
-            </form>
+            {/* Input Area */}
+            <div className="p-4 bg-dark-header/80 backdrop-blur-xl border-t border-dark-border">
+              <form className="max-w-5xl mx-auto flex items-end gap-3" onSubmit={handleSendMessage}>
+                <div className="flex-1 bg-dark-bg border border-dark-border rounded-2xl flex items-end p-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+                  <ImageUpload onImageReady={(imageUrl) => {
+                    socket.emit('sendMessage', { image: imageUrl, recipientId: selectedUser?.id || null });
+                  }} />
+                  <textarea
+                    rows="1"
+                    placeholder="Message..."
+                    className="flex-1 bg-transparent border-none outline-none text-sm p-2 resize-none max-h-32 chat-scrollbar"
+                    value={newMessage}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      if (socket) socket.emit(e.target.value ? 'typing' : 'stopTyping');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        handleSendMessage(e);
+                      }
+                    }}
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={!newMessage.trim()}
+                  className="p-3 bg-primary hover:bg-primary-hover text-white rounded-2xl transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:grayscale disabled:scale-100 active:scale-95"
+                >
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M1.101,21.757L23.8,12.028L1.101,2.3L1.1,10.136l13.569,1.892L1.1,13.921L1.101,21.757z" />
+                  </svg>
+                </button>
+              </form>
+            </div>
           </>
         )}
-      </div>
 
-      {notification && (
-        <div className="notification-toast" onClick={() => selectUser({ id: notification.sender, username: notification.senderName })}>
-          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{notification.senderName}</div>
-          <div style={{ fontSize: '12px', color: 'var(--wa-text-secondary)' }}>{notification.content || '📷 Photo'}</div>
-        </div>
-      )}
+        {/* Notifications */}
+        {notification && (
+          <div 
+            onClick={() => selectUser({ id: notification.sender, username: notification.senderName })}
+            className="fixed top-6 right-6 max-w-sm w-full bg-dark-card border border-primary/30 rounded-2xl p-4 shadow-2xl z-50 slide-in cursor-pointer hover:bg-dark-active transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-bold">
+                {notification.senderName[0].toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-primary font-bold">New Message</p>
+                <h4 className="text-sm font-semibold truncate">{notification.senderName}</h4>
+                <p className="text-xs text-secondary-text truncate">{notification.content || 'Sent an image'}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

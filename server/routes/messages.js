@@ -39,11 +39,21 @@ router.get('/', auth, async (req, res) => {
     let query = {};
 
     if (recipientId) {
-      // Fetch private messages between current user and recipient
+      // SECURITY: Ensure req.user._id is either the sender or the recipient
+      // This is already implicitly handled by the $or query, but we'll make it explicit
+      // to ensure no one can spoof the query.
       query = {
-        $or: [
-          { sender: req.user._id, recipient: recipientId },
-          { sender: recipientId, recipient: req.user._id }
+        $and: [
+          {
+            $or: [
+              { sender: req.user._id, recipient: recipientId },
+              { sender: recipientId, recipient: req.user._id }
+            ]
+          },
+          {
+            // Double check that we are only getting messages where we are a participant
+            $or: [{ sender: req.user._id }, { recipient: req.user._id }]
+          }
         ]
       };
     } else {
