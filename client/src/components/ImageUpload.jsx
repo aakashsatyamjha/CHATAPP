@@ -79,39 +79,37 @@ export default function ImageUpload({ onImageReady }) {
 
       {/* Preview Overlay */}
       {preview && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative max-w-md w-full bg-dark-card border border-dark-border rounded-[2rem] p-6 shadow-2xl slide-in flex flex-col gap-4 overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative max-w-md w-full bg-dark-card border border-dark-border rounded-[2rem] p-5 shadow-2xl slide-in flex flex-col gap-4 max-h-[85vh]">
+            {/* Header with Send and Cancel at the TOP */}
             <div className="flex justify-between items-center shrink-0">
-              <h3 className="text-lg font-bold text-white">Share Image?</h3>
-              <button onClick={resetAll} className="p-2 hover:bg-white/10 rounded-full text-gray-400 transition-colors">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
+              <button 
+                onClick={resetAll}
+                className="px-3 py-1.5 text-xs font-bold text-gray-500 hover:text-white transition-colors"
+                disabled={uploading}
+              >
+                CANCEL
+              </button>
+              
+              <h3 className="text-sm font-black text-white uppercase tracking-tighter">Preview</h3>
+
+              <button 
+                onClick={handleUpload}
+                disabled={uploading}
+                className="px-4 py-1.5 bg-primary text-white rounded-full text-xs font-black uppercase tracking-tight shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {uploading ? '...' : 'SEND'}
               </button>
             </div>
             
-            <div className="rounded-2xl overflow-hidden border border-dark-border bg-dark-bg flex-1 min-h-0 flex items-center justify-center">
-              <img src={preview} alt="preview" className="max-w-full max-h-[40vh] object-contain" />
+            {/* Image centered */}
+            <div className="rounded-2xl overflow-hidden border border-dark-border bg-dark-bg flex-1 min-h-0 flex items-center justify-center shadow-inner">
+              <img src={preview} alt="preview" className="max-w-full max-h-full object-contain" />
             </div>
 
-            <div className="flex flex-col gap-2 shrink-0">
-              <button 
-                type="button"
-                onClick={handleUpload}
-                disabled={uploading}
-                className="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 transition-all hover:bg-primary-hover active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {uploading ? 'Sending...' : 'Send to Chat'}
-              </button>
-              <button 
-                type="button"
-                onClick={resetAll} 
-                className="w-full py-2 text-gray-500 hover:text-white transition-all text-sm font-semibold"
-                disabled={uploading}
-              >
-                Not now, cancel
-              </button>
-            </div>
+            <p className="text-[10px] text-center text-gray-600 font-medium uppercase tracking-widest">
+              Review your image before sending
+            </p>
           </div>
         </div>
       )}
