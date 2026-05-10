@@ -1,4 +1,5 @@
 import React from 'react';
+import { API_URL } from '../utils/api.js';
 
 export default function MessageBubble({ message, isOwn }) {
   const time = new Date(message.createdAt).toLocaleTimeString([], { 
@@ -33,7 +34,7 @@ export default function MessageBubble({ message, isOwn }) {
           {message.image && (
             <div className={`mt-2 rounded-xl overflow-hidden border ${isOwn ? 'border-white/20' : 'border-dark-border'}`}>
               <img 
-                src={message.image} 
+                src={message.image.startsWith('http') ? message.image : `${API_URL}${message.image}`} 
                 alt="Shared" 
                 className="max-w-full h-auto object-cover hover:scale-105 transition-transform duration-500"
                 loading="lazy"
