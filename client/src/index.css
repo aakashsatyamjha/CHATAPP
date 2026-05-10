@@ -25,7 +25,7 @@
 
 @layer components {
   .glass {
-    @apply bg-opacity-70 backdrop-blur-md;
+    @apply bg-dark-card/70 backdrop-blur-md;
   }
   
   .chat-scrollbar::-webkit-scrollbar {
