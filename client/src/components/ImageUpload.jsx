@@ -80,16 +80,16 @@ export default function ImageUpload({ onImageReady }) {
       {/* Preview Overlay */}
       {preview && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative max-w-lg w-full bg-dark-card border border-dark-border rounded-3xl p-6 shadow-2xl slide-in">
-            <h3 className="text-lg font-bold mb-4 text-white">Preview Image</h3>
-            <div className="rounded-2xl overflow-hidden mb-6 border border-dark-border shadow-inner bg-dark-bg">
-              <img src={preview} alt="preview" className="w-full max-h-[60vh] object-contain" />
+          <div className="relative max-w-lg w-full bg-dark-card border border-dark-border rounded-3xl p-6 shadow-2xl slide-in max-h-[95vh] flex flex-col">
+            <h3 className="text-lg font-bold mb-4 text-white shrink-0">Preview Image</h3>
+            <div className="rounded-2xl overflow-hidden mb-6 border border-dark-border shadow-inner bg-dark-bg flex-1 min-h-0">
+              <img src={preview} alt="preview" className="w-full h-full object-contain" />
             </div>
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 shrink-0">
               <button 
                 type="button"
                 onClick={resetAll} 
-                className="px-6 py-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+                className="px-6 py-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all text-sm font-medium"
                 disabled={uploading}
               >
                 Cancel
@@ -98,17 +98,9 @@ export default function ImageUpload({ onImageReady }) {
                 type="button"
                 onClick={handleUpload}
                 disabled={uploading}
-                className="px-6 py-2 bg-primary text-white rounded-xl shadow-lg shadow-primary/20 transition-all hover:bg-primary-hover active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2 bg-primary text-white rounded-xl shadow-lg shadow-primary/20 transition-all hover:bg-primary-hover active:scale-95 disabled:opacity-50 flex items-center gap-2 text-sm font-medium"
               >
-                {uploading ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Sending...
-                  </>
-                ) : 'Send Image'}
+                {uploading ? 'Sending...' : 'Send Image'}
               </button>
             </div>
           </div>
