@@ -133,8 +133,8 @@ io.on('connection', (socket) => {
         // Also send back to the sender so they see their own message
         socket.emit('newMessage', newMessage);
       } else {
-        // Public message: broadcast to all
-        io.emit('newMessage', newMessage);
+        // Group chat disabled: log it but do not broadcast
+        console.log(`Blocked public message from ${socket.username}`);
       }
     } catch (error) {
       console.error('Send message error:', error);

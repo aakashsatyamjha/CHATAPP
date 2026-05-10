@@ -182,29 +182,7 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* Users List */}
         <div className="flex-1 overflow-y-auto chat-scrollbar">
-          {/* Global Chat Item */}
-          <div 
-            onClick={() => selectUser(null)}
-            className={`flex items-center gap-3 p-4 cursor-pointer transition-all border-l-4 ${!selectedUser ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-dark-active'}`}
-          >
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center text-white font-bold shadow-lg shadow-primary/10">
-              #
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-center">
-                <h4 className="text-sm font-semibold truncate text-white">Global Community</h4>
-                {unreadCounts['global'] > 0 && (
-                  <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce">
-                    {unreadCounts['global']}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-secondary-text truncate">Public Group Chat</p>
-            </div>
-          </div>
-
           <div className="px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Contacts</div>
 
           {filteredUsers.map((u) => {
@@ -254,7 +232,7 @@ export default function Chat() {
           <h2 className="font-semibold">{selectedUser ? selectedUser.username : 'Global Community'}</h2>
         </div>
 
-        {(!selectedUser && messages.length === 0) ? (
+        {(!selectedUser) ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
              <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 animate-bounce">
                 <svg viewBox="0 0 24 24" className="w-12 h-12 text-primary" fill="none" stroke="currentColor" strokeWidth="1">
@@ -273,17 +251,17 @@ export default function Chat() {
             {/* Chat Header */}
             <header className="hidden md:flex p-4 items-center justify-between bg-dark-header/80 backdrop-blur-xl border-b border-dark-border sticky top-0 z-20">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg" style={{ background: selectedUser ? `linear-gradient(135deg, hsl(${selectedUser.username.length * 40}, 60%, 50%), hsl(${selectedUser.username.length * 40 + 40}, 60%, 40%))` : 'linear-gradient(135deg, #00A884, #008F6F)' }}>
-                  {selectedUser ? selectedUser.username[0].toUpperCase() : '#'}
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg" style={{ background: `linear-gradient(135deg, hsl(${selectedUser.username.length * 40}, 60%, 50%), hsl(${selectedUser.username.length * 40 + 40}, 60%, 40%))` }}>
+                  {selectedUser.username[0].toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="font-bold text-lg leading-tight">{selectedUser ? selectedUser.username : 'Global Community'}</h2>
+                  <h2 className="font-bold text-lg leading-tight">{selectedUser.username}</h2>
                   <p className="text-xs text-secondary-text">
                     {typingUsers.size > 0 ? (
                       <span className="text-primary italic animate-pulse">
                         {Array.from(typingUsers).join(', ')} typing...
                       </span>
-                    ) : (selectedUser ? (onlineUsers.includes(selectedUser.id) ? 'Online' : 'Offline') : 'Public Group')}
+                    ) : (onlineUsers.includes(selectedUser.id) ? 'Online' : 'Offline')}
                   </p>
                 </div>
               </div>
