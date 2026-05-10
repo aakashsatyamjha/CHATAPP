@@ -1,19 +1,16 @@
 import React from 'react';
 import { API_URL } from '../utils/api.js';
 
-export default function MessageBubble({ message, isOwn }) {
+export default function MessageBubble({ message, isOwn, onImageClick }) {
   const time = new Date(message.createdAt).toLocaleTimeString([], { 
     hour: '2-digit', 
     minute: '2-digit',
     hour12: true 
   });
 
+  const imageUrl = message.image?.startsWith('http') ? message.image : `${API_URL}${message.image}`;
+
   return (
-    <div className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} slide-in group`}>
-      <div className={`max-w-[85%] md:max-w-[70%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-        {/* Sender Name (only for others' messages in group chat) */}
-        {!isOwn && !message.recipient && (
-          <span className="text-[10px] font-bold text-primary ml-2 mb-1 uppercase tracking-wider">
     <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} mb-4 slide-in`}>
       <div className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${
         isOwn 
@@ -46,15 +43,12 @@ export default function MessageBubble({ message, isOwn }) {
             </div>
           )}
 
-          {/* Metadata (Time + Status) */}
-          <div className={`flex items-center gap-1.5 mt-1.5 justify-end ${isOwn ? 'text-white/70' : 'text-secondary-text'}`}>
-            <span className="text-[9px] font-medium uppercase">{time}</span>
+          <div className={`text-[10px] mt-1 flex items-center gap-1 ${isOwn ? 'text-white/60 justify-end' : 'text-secondary-text'}`}>
+            <span>{time}</span>
             {isOwn && (
-              <span className="text-[10px] text-white">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                  <path d="M21 7L9 19L3.5 13.5L4.91 12.09L9 16.17L19.59 5.59L21 7Z" />
-                </svg>
-              </span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             )}
           </div>
         </div>
