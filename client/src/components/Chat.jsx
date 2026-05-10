@@ -18,6 +18,7 @@ export default function Chat() {
   const [notification, setNotification] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [zoomedImage, setZoomedImage] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -287,7 +288,12 @@ export default function Chat() {
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 chat-scrollbar bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed">
               {messages.map((msg) => (
-                <MessageBubble key={msg._id} message={msg} isOwn={msg.sender === user.id} />
+                <MessageBubble 
+                  key={msg._id} 
+                  message={msg} 
+                  isOwn={msg.sender === user.id} 
+                  onImageClick={(url) => setZoomedImage(url)}
+                />
               ))}
               <div ref={messagesEndRef} />
             </div>
@@ -348,6 +354,28 @@ export default function Chat() {
           </div>
         )}
       </main>
+      {/* Image Zoom Modal */}
+      {zoomedImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 md:p-10 animate-fadeIn"
+          onClick={() => setZoomedImage(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors"
+            onClick={() => setZoomedImage(null)}
+          >
+            <svg viewBox="0 0 24 24" className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <img 
+            src={zoomedImage} 
+            alt="Zoomed" 
+            className="max-w-full max-h-full object-contain shadow-2xl rounded-lg animate-zoomIn"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

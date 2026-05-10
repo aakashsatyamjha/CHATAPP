@@ -14,31 +14,35 @@ export default function MessageBubble({ message, isOwn }) {
         {/* Sender Name (only for others' messages in group chat) */}
         {!isOwn && !message.recipient && (
           <span className="text-[10px] font-bold text-primary ml-2 mb-1 uppercase tracking-wider">
-            {message.senderName}
-          </span>
-        )}
-
-        <div className={`relative px-4 py-3 rounded-2xl shadow-sm transition-all ${
-          isOwn 
-            ? 'bg-primary text-white rounded-tr-none shadow-primary/10' 
-            : 'bg-dark-card text-gray-100 rounded-tl-none border border-dark-border shadow-black/20'
-        }`}>
-          {/* Text Content */}
+    <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} mb-4 slide-in`}>
+      <div className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${
+        isOwn 
+          ? 'bg-primary text-white rounded-tr-none' 
+          : 'bg-dark-card text-gray-200 border border-dark-border rounded-tl-none'
+      }`}>
+        <div className="flex flex-col gap-1">
           {message.content && (
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
               {message.content}
             </p>
           )}
 
-          {/* Image Content */}
           {message.image && (
-            <div className={`mt-2 rounded-xl overflow-hidden border ${isOwn ? 'border-white/20' : 'border-dark-border'}`}>
+            <div 
+              onClick={() => onImageClick(imageUrl)}
+              className={`mt-2 rounded-xl overflow-hidden border cursor-pointer group relative ${isOwn ? 'border-white/20' : 'border-dark-border'}`}
+            >
               <img 
-                src={message.image.startsWith('http') ? message.image : `${API_URL}${message.image}`} 
+                src={imageUrl} 
                 alt="Shared" 
-                className="max-w-full h-auto object-cover hover:scale-105 transition-transform duration-500"
+                className="max-w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"
               />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <svg viewBox="0 0 24 24" className="w-8 h-8 text-white drop-shadow-lg" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
             </div>
           )}
 
