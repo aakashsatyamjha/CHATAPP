@@ -30,10 +30,10 @@ export default function MessageBubble({ message, isOwn, onImageClick, onDelete }
           ? 'bg-primary text-white rounded-tr-none' 
           : 'bg-dark-card text-gray-200 border border-dark-border rounded-tl-none'
       }`}>
-        {/* Delete Menu Button */}
+        {/* Delete Menu Button - Visible on Mobile/Desktop */}
         <button 
           onClick={() => setShowMenu(!showMenu)}
-          className={`absolute top-2 ${isOwn ? '-left-8' : '-right-8'} p-1 text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all`}
+          className={`absolute top-2 ${isOwn ? '-left-8' : '-right-8'} p-1 text-gray-500 hover:text-white transition-all md:opacity-0 md:group-hover:opacity-100 bg-dark-bg/50 rounded-full border border-dark-border`}
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
