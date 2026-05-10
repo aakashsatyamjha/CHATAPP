@@ -138,6 +138,12 @@ export default function Chat() {
     if (!newMessage.trim() || !socket) return;
 
     const encryptedContent = encryptMessage(newMessage, user.id, selectedUser?.id);
+    
+    // Strict Security Check: If for any reason encryption fails, we do NOT send the message
+    if (encryptedContent === newMessage && newMessage.length > 0) {
+      console.error("Security Error: Encryption failed. Message blocked.");
+      return;
+    }
 
     socket.emit('sendMessage', {
       content: encryptedContent,
