@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import MessageBubble from './MessageBubble.jsx';
 import ImageUpload from './ImageUpload.jsx';
 import { API_URL, SOCKET_URL } from '../utils/api.js';
+import { encryptMessage, decryptMessage } from '../utils/encryption.js';
 
 export default function Chat() {
   const { user, token, logout } = useAuth();
@@ -63,7 +64,12 @@ export default function Chat() {
         });
         if (res.ok) {
           const data = await res.json();
-          setMessages(data);
+          // Decrypt messages on load
+          const decryptedData = data.map(msg => ({
+            ...msg,
+            content: decryptMessage(msg.content, msg.sender, msg.recipient)
+          }));
+          setMessages(decryptedData);
         }
       } catch (err) {
         console.error('Failed to load messages:', err);
@@ -78,6 +84,12 @@ export default function Chat() {
     setSocket(s);
 
     s.on('newMessage', (msg) => {
+      // Decrypt message on arrival
+      const decryptedMsg = {
+        ...msg,
+        content: decryptMessage(msg.content, msg.sender, msg.recipient)
+      };
+
       const isGlobalMsg = !msg.recipient && !selectedUser;
       const isPrivateMsg = selectedUser && (
         (msg.sender === selectedUser.id && msg.recipient === user.id) ||
@@ -85,7 +97,7 @@ export default function Chat() {
       );
 
       if (isGlobalMsg || isPrivateMsg) {
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => [...prev, decryptedMsg]);
       } else if (msg.sender !== user.id) {
         // Increment unread count for the sender
         setUnreadCounts((prev) => ({
@@ -96,7 +108,7 @@ export default function Chat() {
         setNotification({
           sender: msg.sender,
           senderName: msg.senderName,
-          content: msg.content
+          content: decryptedMsg.content
         });
         setTimeout(() => setNotification(null), 4000);
       }
@@ -125,8 +137,10 @@ export default function Chat() {
     e.preventDefault();
     if (!newMessage.trim() || !socket) return;
 
+    const encryptedContent = encryptMessage(newMessage, user.id, selectedUser?.id);
+
     socket.emit('sendMessage', {
-      content: newMessage,
+      content: encryptedContent,
       recipientId: selectedUser?.id || null,
     });
     setNewMessage('');
