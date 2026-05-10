@@ -49,14 +49,16 @@ router.get('/', auth, async (req, res) => {
             ]
           },
           {
-            // Double check that we are only getting messages where we are a participant
-            $or: [{ sender: req.user.id }, { recipient: req.user.id }]
+            // Only get messages where we are a participant AND haven't deleted it for ourselves
+            $and: [
+              { $or: [{ sender: req.user.id }, { recipient: req.user.id }] },
+              { deletedBy: { $ne: req.user.id } }
+            ]
           }
         ]
       };
     } else {
       // Fetch public messages - DISABLED for total privacy
-      // We set a query that will likely return nothing to ensure no leaks
       query = { _id: null };
     }
 
@@ -80,6 +82,43 @@ router.post('/upload', auth, upload.single('image'), (req, res) => {
     res.json({ imageUrl });
   } catch (error) {
     res.status(500).json({ message: 'Upload failed' });
+  }
+});
+
+// DELETE /api/messages/:id — Delete a message
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const { mode } = req.body; // 'me' or 'everyone'
+    const message = await Message.findById(req.params.id);
+
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    // Security: Only participants can delete
+    const isSender = message.sender.toString() === req.user.id;
+    const isRecipient = message.recipient?.toString() === req.user.id;
+
+    if (!isSender && !isRecipient) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (mode === 'everyone') {
+      if (!isSender) {
+        return res.status(403).json({ message: 'Only sender can delete for everyone' });
+      }
+      await Message.findByIdAndDelete(req.params.id);
+      return res.json({ message: 'Deleted for everyone', id: req.params.id, mode: 'everyone' });
+    } else {
+      // Delete for me
+      if (!message.deletedBy.includes(req.user.id)) {
+        message.deletedBy.push(req.user.id);
+        await message.save();
+      }
+      return res.json({ message: 'Deleted for me', id: req.params.id, mode: 'me' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Delete failed' });
   }
 });
 

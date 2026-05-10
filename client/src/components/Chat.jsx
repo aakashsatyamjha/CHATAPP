@@ -130,6 +130,10 @@ export default function Chat() {
       });
     });
 
+    s.on('messageDeleted', ({ id }) => {
+      setMessages((prev) => prev.filter((m) => m._id !== id));
+    });
+
     return () => s.disconnect();
   }, [token, selectedUser, user.id]);
 
@@ -151,6 +155,32 @@ export default function Chat() {
     });
     setNewMessage('');
     socket.emit('stopTyping');
+  };
+
+  const handleDeleteMessage = async (id, mode) => {
+    try {
+      const res = await fetch(`${API_URL}/api/messages/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ mode })
+      });
+
+      if (res.ok) {
+        setMessages((prev) => prev.filter((m) => m._id !== id));
+        if (socket) {
+          socket.emit('deleteMessage', { 
+            id, 
+            recipientId: selectedUser?.id, 
+            mode 
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
   };
 
   const selectUser = (u) => {
@@ -313,6 +343,7 @@ export default function Chat() {
                   message={msg} 
                   isOwn={msg.sender === user.id} 
                   onImageClick={(url) => setZoomedImage(url)}
+                  onDelete={handleDeleteMessage}
                 />
               ))}
               <div ref={messagesEndRef} />

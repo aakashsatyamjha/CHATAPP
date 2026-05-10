@@ -150,6 +150,17 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('userStopTyping', { username: socket.username });
   });
 
+  // Handle message deletion
+  socket.on('deleteMessage', (data) => {
+    const { id, recipientId, mode } = data;
+    if (mode === 'everyone' && recipientId) {
+      const recipientSocketId = userSockets.get(recipientId);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('messageDeleted', { id });
+      }
+    }
+  });
+
   // Handle disconnect
   socket.on('disconnect', () => {
     console.log(`❌ User disconnected: ${socket.username}`);
