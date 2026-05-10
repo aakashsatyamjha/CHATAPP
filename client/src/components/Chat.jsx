@@ -36,7 +36,12 @@ export default function Chat() {
         });
         if (res.ok) {
           const data = await res.json();
-          setAllUsers(data.filter(u => u.id !== user.id));
+          // Map _id to id for consistency
+          const mappedUsers = data.map(u => ({
+            ...u,
+            id: u._id
+          }));
+          setAllUsers(mappedUsers.filter(u => u.id !== user.id));
         }
       } catch (err) {
         console.error('Failed to fetch users:', err);
